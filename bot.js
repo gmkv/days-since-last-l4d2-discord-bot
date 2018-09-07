@@ -6,11 +6,7 @@ var datetemp;
 var fs = require('fs');
 var firstDate = new Date();
 
-fs.readFile('DateTime.txt', 'utf8', function(err, contents) {
-    datetemp = contents;
-    firstDate = new Date(Date.parse(datetemp));
-    // console.log(firstDate.getTime());
-});
+
 logger.remove(logger.transports.Console);
 
 logger.add(new logger.transports.Console, {
@@ -37,17 +33,23 @@ bot.on('message', function(user, userID, channelID, message, evt) {
         args = args.splice(1);
         switch (cmd) {
             case 'time':
-                var diffDays = Math.round(Math.abs((current.getTime() - firstDate.getTime()) / (oneDay)));
-                bot.sendMessage({
-                    to: channelID,
-                    message: diffDays.toString() + ' days'
+                fs.readFile('DateTime.txt', 'utf8', function(err, contents) {
+                    datetemp = contents
+                    firstDate = new Date(Date.parse(datetemp))
+                    // console.log(firstDate.getTime())
+
+                    var diffDays = Math.round(Math.abs((current.getTime() - firstDate.getTime()) / (oneDay)));
+                    bot.sendMessage({
+                        to: channelID,
+                        message: diffDays.toString() + ' days'
+                    })
                 })
                 break;
             case 'resetdate':
                 firstDate = new Date();
                 fs.writeFile('DateTime.txt', firstDate.toString(), function(err) {
-                    if (err) throw err;
-                    console.log('Saved');
+                    if (err) throw err
+                    console.log('Saved')
                 });
                 bot.sendMessage({
                     to: channelID,
