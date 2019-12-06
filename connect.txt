@@ -1,5 +1,0 @@
-480727169979383829
-
-https://discordapp.com/oauth2/authorize?&client_id=CLIENTID&scope=bot&permissions=0
-
-npm install https://github.com/woor/discord.io/tarball/gateway_v6

@@ -1,83 +1,116 @@
-var Discord = require('discord.io');
-var logger = require('winston');
-var current = new Date();
-var auth = require('./auth.json');
-var datetemp;
-var fs = require('fs');
-var firstDate = new Date();
+"use strict";
 
+const Discord = require('discord.io');
+const Log = require('winston');
+const auth = require('./auth.json');
+const fs = require('fs');
 
-logger.remove(logger.transports.Console);
+Log.add(new Log.transports.Console, { colorize: true });
+Log.level = 'debug';
 
-logger.add(new logger.transports.Console, {
-    colorize: true
-});
-logger.level = 'debug';
+const calculateDays = (date1, date2) => {
+	const timeDifference = date1.getTime() - date2.getTime();
+	const daysDifference = Math.floor(Math.abs(timeDifference / (24 * 60 * 60 * 1000)));
 
-var bot = new Discord.Client({
-    token: auth.token,
-    autorun: true
-});
+	return daysDifference;
+}
 
-bot.on('ready', function(evt) {
-    logger.info('Connected');
-    logger.info('Logged in as: ');
-    logger.info(bot.username + ' - (' + bot.id + ')');
+const bot = new Discord.Client({
+	token: auth.token,
+	autorun: true
 });
 
-bot.on('message', function(user, userID, channelID, message, evt) {
-    if (message.substring(0, 1) == '!') {
-        var args = message.substring(1).split(' ');
-        var cmd = args[0];
-        var oneDay = 24 * 60 * 60 * 1000;
-        args = args.splice(1);
-        switch (cmd) {
-            case 'time':
-                fs.readFile('DateTime.txt', 'utf8', function(err, contents) {
-                    datetemp = contents
-                    firstDate = new Date(Date.parse(datetemp))
-                    // console.log(firstDate.getTime())
+bot.updateDate = function (date, user) {
+	this.savedDate = date;
+	fs.writeFile('DateTime.txt', this.savedDate.toString(), function (err) {
+		if (err) {
+			Log.error(`Could not update date when writing to file: ${err}`)
+			process.exit(1);
+		}
+		Log.info(`Changed date to ${this.savedDate} by ${user.username}#${user.discriminator}`)
+	}.bind(this));
+}
 
-                    var diffDays = Math.round(Math.abs((current.getTime() - firstDate.getTime()) / (oneDay)));
-                    bot.sendMessage({
-                        to: channelID,
-                        message: diffDays.toString() + ' days'
-                    })
-                })
-                break;
-            case 'case1':  // resetdate
-                firstDate = new Date();
-                fs.writeFile('DateTime.txt', firstDate.toString(), function(err) {
-                    if (err) throw err
-                    console.log('Saved')
-                });
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'Date reset'
-                })
-                break;
-            case 'case2': // setsefte
-                var month = args[1];
-                month--;
-                tempdate = new Date(args[2], month, args[0]);
-                if (tempdate.getTime() > new Date().getTime()) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: 'tva e v budeshteto e DIBIL'
-                    })
-                    break;
-                } else
-                    firstDate = new Date(args[2], month, args[0]);
-                var diffDays = Math.round(Math.round((current.getTime() - firstDate.getTime()) / (oneDay)));
-                if (diffDays >= 0)
-                    bot.sendMessage({
-                        to: channelID,
-                        message: diffDays.toString() + ' days since last L4D2'
-                    })
-                fs.writeFile('DateTime.txt', firstDate.toString(), function(err) {
-                    if (err) throw err;
-                    console.log('Saved');
-                });
-        }
-    }
+bot.on('ready', function () {
+	Log.info('Connected');
+	Log.info('Logged in as: ');
+	Log.info(this.username + ' - (' + this.id + ')');
+
+	fs.readFile('DateTime.txt', 'utf8', function (err, contents) {
+		if (err) {
+			Log.error("could not open DateTime.txt", err)
+			process.exit(1);
+		}
+
+		this.savedDate = new Date(Date.parse(contents))
+		Log.info(`Loaded date ${this.savedDate}`)
+	}.bind(this))
+});
+
+bot.on('message', function (user, userID, channelID, message, evt) {
+	debugger
+	if (message.substring(0, 1) !== '!') {
+		return
+	}
+
+	let days, word;
+
+	let args = message.substring(1).split(' ');
+	const cmd = args[0];
+	args = args.splice(1);
+
+	switch (cmd) {
+		case 'time':
+			days = calculateDays(this.savedDate, new Date());
+			word = days !== 1 ? "days" : "day";
+			bot.sendMessage({
+				to: channelID,
+				message: `${days} ${word}`
+			})
+
+			return;
+
+		case 'fgt1':  // resetdate
+			bot.updateDate(new Date(), evt.d.author);
+			bot.sendMessage({
+				to: channelID,
+				message: 'OK, Date reset'
+			})
+
+			return;
+
+		case 'fgt2': // setsefte
+			// accepted format of cmd is `setsefte 24 12 2020` - spaces between numbers
+			if (args.length !== 3) {
+				return
+			}
+			const [dd, mm, yyyy] = args.map(s => Number.parseInt(s));
+			const input = Date.parse(`${yyyy}-${mm}-${dd}`);
+			if (!input) {
+				return;
+			}
+
+			const inputDate = new Date(input);
+			if (inputDate.getTime() > new Date().getTime()) {
+				bot.sendMessage({
+					to: channelID,
+					message: 'tva e v budeshteto e DIBIL'
+				});
+				return;
+			}
+
+			days = calculateDays(inputDate, new Date());
+			word = days !== 1 ? "days" : "day";
+
+			bot.sendMessage({
+				to: channelID,
+				message: `${days} ${word} since last L4D2`
+			});
+			bot.updateDate(inputDate, evt.d.author);
+			return;
+
+		default:
+			// unrecognised command, do nothing
+			return;
+	}
 });
