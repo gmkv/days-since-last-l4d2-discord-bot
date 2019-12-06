@@ -1,0 +1,14 @@
+{
+  "name": "days-since-last-l4d2-discord-bot",
+  "version": "1.0.0",
+  "description": "Days since last game of L4D2; day counting bot for Discord",
+  "author": "",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "discord.io": "github:woor/discord.io#gateway_v6",
+    "winston": "^3.0.0"
+  }
+}
